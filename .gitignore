@@ -9,3 +9,6 @@ __pycache__/
 *.egg-info/
 api/storage/
 sim/state/
+web/node_modules/
+sim/control-panel/node_modules/
+reference/node_modules/

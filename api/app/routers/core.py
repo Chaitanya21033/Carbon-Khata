@@ -575,6 +575,8 @@ COLMAP = {"bodies_produced": ("PROD", "reading"), "grid_kwh": ("GRID_KWH", "read
 
 class CsvIn(BaseModel):
     csv: str
+    mapping: Optional[dict[str, str]] = None   # CSV column → register id (from the mapping step)
+    contractDemandKva: Optional[float] = None
 
 
 @r.post("/onboarding/import/csv", tags=["onboarding"])
@@ -585,7 +587,9 @@ def import_csv(body: CsvIn, ctx: Ctx = Depends(require(*CUSTODY, "admin")), db: 
     if not rows or "period_month" not in rows[0]:
         raise HTTPException(422, "First column must be period_month (YYYY-MM)")
     cols = {d["col"]: d["code"] for d in ISSUE_ONLY}
-    regs = [x for x in seed_registers() if x.mode != "full"]
+    all_regs = seed_registers()
+    modes = {x.id: x.mode for x in all_regs}
+    regs = [L.Register(**{**x.__dict__, "mode": "issue_only"}) if x.mode == "full" else x for x in all_regs]
     entries, months, used = [], [], set()
     for row in rows:
         m = row["period_month"]
@@ -593,13 +597,21 @@ def import_csv(body: CsvIn, ctx: Ctx = Depends(require(*CUSTODY, "admin")), db: 
         for col, v in row.items():
             if col == "period_month" or v == "":
                 continue
-            reg, line = COLMAP.get(col, (cols.get(col), "issued"))
+            if body.mapping is not None:
+                reg = body.mapping.get(col)
+                line = "reading" if modes.get(reg) == "reading" else "issued"
+            else:
+                reg, line = COLMAP.get(col, (cols.get(col), "issued"))
             if not reg:
                 continue
+            try:
+                float(v)
+            except ValueError:
+                raise HTTPException(422, f"Row {m}, column {col}: '{v}' is not a number")
             used.add(reg)
             entries.append(L.LedgerEntry(id=L.uid("imp"), registerId=reg, month=m, line=line, qty=float(v), source="import"))
     idx = L.build_index(entries)
-    issues = run_validation(ValidationContext([x for x in regs if x.id in used], idx, months, months, 450))
+    issues = run_validation(ValidationContext([x for x in regs if x.id in used], idx, months, months, body.contractDemandKva or 450))
     count: dict = {}
     for i in issues:
         count[i.rule] = count.get(i.rule, 0) + 1

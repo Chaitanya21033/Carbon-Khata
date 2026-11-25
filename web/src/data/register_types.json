@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "register_types": [
+    {"code": "DIESEL", "name": "Diesel (HSD)", "unit": "L", "category": "fuel", "factor_code": "EF_DIESEL", "issue_tags": ["dg_set", "forklift", "hydra_crane", "dispatch_oem", "dispatch_private", "company_vehicle", "other"]},
+    {"code": "LPG", "name": "LPG", "unit": "kg", "category": "fuel", "factor_code": "EF_LPG", "cylinder_size": 19},
+    {"code": "PNG", "name": "Piped natural gas", "unit": "scm", "category": "fuel", "factor_code": "EF_PNG"},
+    {"code": "FO", "name": "Furnace oil", "unit": "L", "category": "fuel", "factor_code": null},
+    {"code": "CO2_GAS", "name": "CO2 welding gas", "unit": "kg", "category": "gas", "factor_code": "EF_CO2_PROCESS", "cylinder_size": 30},
+    {"code": "ARGON", "name": "Argon", "unit": "m3", "category": "gas", "factor_code": null},
+    {"code": "OXYGEN", "name": "Oxygen", "unit": "m3", "category": "gas", "factor_code": null, "cylinder_size": 7},
+    {"code": "HR_SHEET", "name": "HR steel sheet", "unit": "kg", "category": "material", "factor_code": "EF_STEEL_IN_REF"},
+    {"code": "TUBE", "name": "Tube / angle / bar", "unit": "kg", "category": "material", "factor_code": "EF_STEEL_IN_REF"},
+    {"code": "MIG_WIRE", "name": "MIG welding wire", "unit": "kg", "category": "consumable", "factor_code": null},
+    {"code": "PAINT", "name": "Paint (per SKU)", "unit": "L", "category": "consumable", "factor_code": null, "per_sku": true},
+    {"code": "THINNER", "name": "Thinner", "unit": "L", "category": "consumable", "factor_code": null},
+    {"code": "HARDENER", "name": "Hardener", "unit": "L", "category": "consumable", "factor_code": null},
+    {"code": "HYD_OIL", "name": "Hydraulic oil", "unit": "L", "category": "consumable", "factor_code": null},
+    {"code": "SHOT", "name": "Steel shot", "unit": "kg", "category": "consumable", "factor_code": null},
+    {"code": "GRIT", "name": "Steel grit", "unit": "kg", "category": "consumable", "factor_code": null},
+    {"code": "GREASE", "name": "Grease", "unit": "kg", "category": "consumable", "factor_code": null},
+    {"code": "WATER_SUPPLY", "name": "Water, supply", "unit": "L", "category": "water", "factor_code": null},
+    {"code": "WATER_BORE", "name": "Water, borewell", "unit": "L", "category": "water", "factor_code": null},
+    {"code": "CHEM", "name": "Pre-treatment chemical (per SKU)", "unit": "L|kg", "category": "chemical", "factor_code": null, "per_sku": true},
+    {"code": "SCRAP_HR", "name": "HR sheet scrap", "unit": "kg", "category": "scrap", "factor_code": null},
+    {"code": "SCRAP_TUBE", "name": "Tube scrap", "unit": "kg", "category": "scrap", "factor_code": null},
+    {"code": "SCRAP_PLASMA", "name": "Plasma scrap / slag", "unit": "kg", "category": "scrap", "factor_code": null},
+    {"code": "SLUDGE", "name": "Paint sludge", "unit": "kg", "category": "waste", "factor_code": null, "hazardous": true}
+  ]
+}

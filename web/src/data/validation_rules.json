@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "rules": [
+    {"code": "V01", "name": "Order-of-magnitude high", "severity": "block_until_confirmed", "params": {"multiple_of_median": 5, "window_months": 6, "min_history_months": 3}, "message_en": "This is {ratio}× your usual {field}. Check for an extra digit.", "message_hi": "यह आपके सामान्य {field} का {ratio} गुना है। कहीं एक अंक ज़्यादा तो नहीं?"},
+    {"code": "V02", "name": "Order-of-magnitude low", "severity": "block_until_confirmed", "params": {"fraction_of_median": 0.2, "window_months": 6, "min_history_months": 3}, "message_en": "This is only {ratio}× your usual {field}. Check for a missing digit.", "message_hi": "यह आपके सामान्य {field} का केवल {ratio} गुना है। कहीं एक अंक छूट तो नहीं गया?"},
+    {"code": "V03", "name": "Flat-lined value", "severity": "warn", "params": {"consecutive_months": 6}, "message_en": "{field} is exactly {value} for {n} months. This looks like an estimate, not a reading.", "message_hi": "{field} लगातार {n} महीनों से {value} है। यह अनुमान लगता है, रीडिंग नहीं।"},
+    {"code": "V04", "name": "Missing required field", "severity": "warn_block_at_close", "params": {}, "message_en": "{field} is missing for {month}.", "message_hi": "{month} के लिए {field} नहीं भरा गया।"},
+    {"code": "V05", "name": "Register does not balance", "severity": "block_at_close", "params": {"abs_tolerance": 0.5, "rel_tolerance": 0.001}, "message_en": "Opening {o} + received {r} − issued {i} = {calc}, but closing shows {c}.", "message_hi": "प्रारंभिक {o} + प्राप्त {r} − जारी {i} = {calc}, लेकिन अंतिम शेष {c} लिखा है।"},
+    {"code": "V06", "name": "Contract demand exceeded", "severity": "info", "params": {}, "message_en": "Maximum demand {md} kVA is above your {cd} kVA contract.", "message_hi": "अधिकतम मांग {md} kVA आपके {cd} kVA अनुबंध से ज़्यादा है।"},
+    {"code": "V07", "name": "Bill arithmetic outlier", "severity": "warn", "params": {"low": 0.5, "high": 2.0}, "message_en": "This bill works out to ₹{rate}/kWh against your usual ₹{median}/kWh.", "message_hi": "यह बिल ₹{rate}/kWh बनता है, जबकि सामान्य ₹{median}/kWh है।"},
+    {"code": "V08", "name": "kWh vs kVAh mismatch", "severity": "warn", "params": {"pf_tolerance": 0.03}, "message_en": "Power factor {pf} does not match kWh/kVAh ({implied}).", "message_hi": "पावर फ़ैक्टर {pf} kWh/kVAh ({implied}) से मेल नहीं खाता।"},
+    {"code": "V09", "name": "Intensity outlier", "severity": "info", "params": {"band": 0.4, "window_months": 12}, "message_en": "{kwh_per_unit} kWh per unit is far from your usual {median}.", "message_hi": "प्रति यूनिट {kwh_per_unit} kWh आपके सामान्य {median} से बहुत अलग है।"},
+    {"code": "V10", "name": "Duplicate document", "severity": "block", "params": {}, "message_en": "This document was already entered on {date}.", "message_hi": "यह दस्तावेज़ {date} को पहले ही दर्ज हो चुका है।"},
+    {"code": "V11", "name": "Meter photo low confidence", "severity": "warn", "params": {"min_confidence": 0.85, "require_monotonic": true}, "message_en": "We could not read this clearly. Retake the photo or type the value.", "message_hi": "रीडिंग साफ़ नहीं पढ़ी जा सकी। फ़ोटो दोबारा लें या संख्या टाइप करें।"},
+    {"code": "V12", "name": "Negative stock", "severity": "block", "params": {}, "message_en": "Stock would go below zero ({value}). More was issued than was available.", "message_hi": "स्टॉक शून्य से कम ({value}) हो जाएगा। उपलब्ध से ज़्यादा जारी हुआ है।"}
+  ],
+  "dq_score": {"start": 100, "per_open_block": -15, "per_open_warn": -5, "per_accepted_as_real": -2, "month_reopened": -10, "missing_required_source": -20, "floor": 0}
+}

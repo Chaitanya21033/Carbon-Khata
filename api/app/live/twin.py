@@ -307,10 +307,11 @@ class PlantTwin:
         t = self._token(int(evt["serial"]))
         if kind == "started":
             oem = evt["oem"]
-            t.update(station=0, oem=oem, order=evt["order"], steelKg=evt["steelKg"], steel=evt["steelKg"] / 1000 * self.oems[oem]["steelEf"] * 1000, started=clock)
+            t.update(station=0, since=clock, oem=oem, order=evt["order"], steelKg=evt["steelKg"], steel=evt["steelKg"] / 1000 * self.oems[oem]["steelEf"] * 1000, started=clock)
         elif kind == "moved":
             st = int(evt["station"])
             t["station"] = st
+            t["since"] = clock
             if st == 2:
                 t["s1"] += CO2_PER_BODY_KG * EF["co2"]
             if st == 3:
@@ -398,7 +399,7 @@ class PlantTwin:
             "shift": "A" if 6 <= h < 14 else "B" if 14 <= h < 22 else "C", "block": self.block, "month": month_of(self.clock) if self.clock else None,
             "kw": sum(self.last[k] for k in ("comp", "weld", "paint", "light", "util")), "kgToday": self.kg_today(),
             "today": self.today, "totals": self.totals, "last": self.last, "series": self.series, "events": self.events[:80], "quarantine": self.quarantine,
-            "tokens": [{"id": t["id"], "station": t["station"], "oem": t["oem"], "order": t["order"]} for t in self.tokens],
+            "tokens": [{"id": t["id"], "station": t["station"], "oem": t["oem"], "order": t["order"], "since": t.get("since")} for t in self.tokens],
             "passports": self.passports if passports else [], "oemToday": self.oem_today, "machineAlerts": self.machine_alerts, "online": self.online, "queued": self.queued,
             "stations": STATIONS, "meters": METERS, "devices": DEVICES, "oems": self.oems,
             "ems": {"settings": vars(e.settings), "solarKwp": e.assets.solarKwp, "bess": {"capKwh": e.assets.bessCapKwh, "powerKw": e.assets.bessPowerKw, "soc": e.soc},

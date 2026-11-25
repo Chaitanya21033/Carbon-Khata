@@ -1,0 +1,102 @@
+{
+  "library_version": 1,
+  "note": "Values are versioned. A month uses the factor valid in that month. Changing a value creates a new version; never overwrite.",
+  "factors": [
+    {
+      "code": "EF_GRID_IN",
+      "activity": "Grid electricity, India",
+      "scope": 2,
+      "unit": "kWh",
+      "kgco2e_per_unit": 0.71,
+      "source": "CEA CO2 Baseline Database for the Indian Power Sector, v21.0",
+      "version": 1,
+      "valid_from": "2023-04-01",
+      "valid_to": null,
+      "status": "active"
+    },
+    {
+      "code": "EF_DIESEL",
+      "activity": "Diesel (HSD) combustion",
+      "scope": 1,
+      "unit": "L",
+      "kgco2e_per_unit": 2.68,
+      "source": "IPCC 2006 Guidelines",
+      "version": 1,
+      "valid_from": "2000-01-01",
+      "valid_to": null,
+      "status": "active"
+    },
+    {
+      "code": "EF_LPG",
+      "activity": "LPG combustion",
+      "scope": 1,
+      "unit": "kg",
+      "kgco2e_per_unit": 2.98,
+      "source": "IPCC 2006 Guidelines",
+      "version": 1,
+      "valid_from": "2000-01-01",
+      "valid_to": null,
+      "status": "active"
+    },
+    {
+      "code": "EF_CO2_PROCESS",
+      "activity": "CO2 shielding gas released on site",
+      "scope": 1,
+      "unit": "kg",
+      "kgco2e_per_unit": 1.0,
+      "source": "Mass balance (released CO2 = issued CO2)",
+      "version": 1,
+      "valid_from": "2000-01-01",
+      "valid_to": null,
+      "status": "active"
+    },
+    {
+      "code": "EF_PNG",
+      "activity": "Piped natural gas combustion",
+      "scope": 1,
+      "unit": "scm",
+      "kgco2e_per_unit": 2.02,
+      "source": "Provisional; confirm against IPCC 2006 and supplier GCV before use",
+      "version": 1,
+      "valid_from": "2000-01-01",
+      "valid_to": null,
+      "status": "provisional"
+    },
+    {
+      "code": "EF_SOLAR_SELF",
+      "activity": "Self-generated rooftop solar",
+      "scope": 2,
+      "unit": "kWh",
+      "kgco2e_per_unit": 0.0,
+      "source": "Zero-emission generation; report avoided tCO2 separately using EF_GRID_IN",
+      "version": 1,
+      "valid_from": "2000-01-01",
+      "valid_to": null,
+      "status": "active"
+    },
+    {
+      "code": "EF_STEEL_IN_REF",
+      "activity": "Purchased steel (Scope 3 reference, later)",
+      "scope": 3,
+      "unit": "t",
+      "kgco2e_per_unit": 2200,
+      "source": "India Green Steel Taxonomy (Dec 2024) eligibility ceiling 2.2 tCO2e/t; conservative placeholder until supplier-specific data",
+      "version": 1,
+      "valid_from": "2024-12-12",
+      "valid_to": null,
+      "status": "reference_only"
+    },
+    {
+      "code": "EF_GREEN_OA",
+      "activity": "Green open-access power (G-DAM / RE PPA), market-based",
+      "scope": 2,
+      "unit": "kWh",
+      "kgco2e_per_unit": 0.0,
+      "source": "Market-based method: renewable attributes contracted and not double-claimed; location-based reporting still uses CEA average",
+      "version": 1,
+      "valid_from": "2000-01-01",
+      "valid_to": null,
+      "status": "active"
+    }
+  ]
+}

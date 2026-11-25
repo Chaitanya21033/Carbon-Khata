@@ -709,7 +709,7 @@ def pool_today(ctx: Ctx = Depends(current), db: Session = Depends(get_db)):
     clock = registry.plant_now_ms()
     d = (dt.date(1970, 1, 1) + dt.timedelta(days=clock // 86_400_000)).isoformat()
     rows = db.scalars(select(PoolBlock).where(PoolBlock.cluster_id == CLUSTER_ID, PoolBlock.date == d).order_by(PoolBlock.block)).all()
-    return {"date": d, "rows": [x.settlement for x in rows], "market": market_day(clock // 86_400_000, 0.6 if any((x.flags or {}).get("cloud") for x in rows[-1:]) else 0),
+    return {"date": d, "rows": [{**x.settlement, "readings": x.readings} for x in rows], "market": market_day(clock // 86_400_000, 0.6 if any((x.flags or {}).get("cloud") for x in rows[-1:]) else 0),
             "flags": rows[-1].flags if rows else {}}
 
 
