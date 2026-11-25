@@ -12,13 +12,13 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(ROOT / ".env", ROOT / "infra" / ".env"), extra="ignore")
 
     database_url: str = "postgresql+psycopg://carbonkhata:carbonkhata@localhost:5432/carbonkhata"
-    jwt_secret: str = "dev-only-change-me"
+    jwt_secret: str = "dev-only-change-me-to-a-long-random-string"
     jwt_ttl_minutes: int = 720
     otp_dev_echo: bool = True            # dev: return the OTP in the response and print it to the console
     mqtt_host: str = "localhost"
     mqtt_port: int = 1883
     mqtt_enabled: bool = True
-    device_keys: str = "sim-vbw:dev-device-key,sim-afl:dev-device-key,sim-cluster:dev-device-key,sim-market:dev-device-key"
+    device_keys: str = "sim-vbw:dev-key-vbw,sim-afl:dev-key-afl,sim-cluster:dev-key-cluster,sim-market:dev-key-market"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     storage_dir: str = str(ROOT / "api" / "storage")
     open_meteo_enabled: bool = True

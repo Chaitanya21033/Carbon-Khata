@@ -290,11 +290,13 @@ class SimEngine:
         self.entry("stores", "DIESEL", "issued", litres, "Diesel burned by DG set during power cut")
 
     # ---------- entries ----------
-    def entry(self, device: str, register_id: str, line: str, qty: float, label: str, force_doc: str | None = None, fresh_key: bool = False):
+    def entry(self, device: str, register_id: str, line: str, qty: float, label: str, force_doc: str | None = None, fresh_key: bool = False, injected: bool = False):
         self.seq += 1
         doc = force_doc or f"{register_id}-{self._stamp()}-{self.seq}"
         key = f"sim-{doc}" if not fresh_key else f"sim-{doc}-{self.seq}"
         req = {"registerId": register_id, "month": self.month, "line": line, "qty": qty, "docRef": doc, "by": DEVICE_LABEL[device], "source": "app", "idempotencyKey": key, "reason": label, "ts": self.clock}
+        if injected:
+            req["_injected"] = True
         if not self.online[device]:
             self.queues[device].append(("entry", req))
             if len(self.queues[device]) == 1:
@@ -304,7 +306,8 @@ class SimEngine:
 
     def _commit(self, req: dict, device: str):
         self.t.post_entry(req, device)
-        self.last_posted = {**req, "device": device}
+        if not req.get("_injected"):
+            self.last_posted = {**req, "device": device}
         reg = req["registerId"]
         if reg in FULL and not req.get("_injected"):
             self.stock[reg] = self.stock.get(reg, 0) + (req["qty"] if req["line"] == "received" else -req["qty"] if req["line"] == "issued" else 0)
@@ -327,7 +330,7 @@ class SimEngine:
 
     def inject(self, kind: str):
         if kind == "typo":
-            self.entry("stores", "HR_SHEET", "issued", 32000, "Steel sheet issue (typed 32000 for 3200)")
+            self.entry("stores", "HR_SHEET", "issued", 32000, "Steel sheet issue (typed 32000 for 3200)", injected=True)
         elif kind == "negative":
             self.seq += 1
             doc = f"HYD_OIL-{self._stamp()}-{self.seq}"
@@ -336,11 +339,11 @@ class SimEngine:
         elif kind == "duplicate":
             lp = self.last_posted
             if lp:
-                self.entry(lp["device"], lp["registerId"], lp["line"], lp["qty"], "Same slip entered again", force_doc=lp["docRef"], fresh_key=True)
+                self.entry(lp["device"], lp["registerId"], lp["line"], lp["qty"], "Same slip entered again", force_doc=lp["docRef"], fresh_key=True, injected=True)
             else:
                 doc = f"DIESEL-{self._stamp()}-X"
                 self.entry("stores", "DIESEL", "issued", 40, "Diesel to forklift", force_doc=doc)
-                self.entry("stores", "DIESEL", "issued", 40, "Same slip entered again", force_doc=doc, fresh_key=True)
+                self.entry("stores", "DIESEL", "issued", 40, "Same slip entered again", force_doc=doc, fresh_key=True, injected=True)
         elif kind == "meterGlitch":
             self.t.telemetry({"ts": self.clock, "glitch": {"meter": "comp", "cumulativeKwh": -1}})
         elif kind == "surge":

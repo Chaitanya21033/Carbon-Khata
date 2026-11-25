@@ -41,7 +41,7 @@ def env(k: str, d: str) -> str:
 
 class Sim:
     def __init__(self):
-        keys = dict(p.split(":", 1) for p in env("DEVICE_KEYS", "sim-vbw:dev-device-key,sim-afl:dev-device-key,sim-cluster:dev-device-key,sim-market:dev-device-key").split(","))
+        keys = dict(p.split(":", 1) for p in env("DEVICE_KEYS", "sim-vbw:dev-key-vbw,sim-afl:dev-key-afl,sim-cluster:dev-key-cluster,sim-market:dev-key-market"))
         self.api = Api(env("API_URL", "http://localhost:8000"), keys)
         self.tr = LiveTransport(self.api, env("MQTT_HOST", "localhost"), int(env("MQTT_PORT", "1883")))
         self.tr.on_replan = lambda: self.e.replan()
