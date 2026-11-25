@@ -1,3 +1,11 @@
-node_modules
-dist
-dist-single
+node_modules/
+dist/
+dist-single/
+__pycache__/
+*.pyc
+.venv/
+.env
+.pytest_cache/
+*.egg-info/
+api/storage/
+sim/state/
