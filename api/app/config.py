@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     device_keys: str = "sim-vbw:dev-key-vbw,sim-afl:dev-key-afl,sim-cluster:dev-key-cluster,sim-market:dev-key-market"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     storage_dir: str = str(ROOT / "api" / "storage")
+
+    def model_post_init(self, _ctx):
+        if not self.storage_dir:
+            self.storage_dir = str(ROOT / "api" / "storage")
     open_meteo_enabled: bool = True
     electricitymaps_api_key: str = ""
     smart_meter_api_url: str = ""        # head-end system (HES) REST endpoint; empty = use the MQTT push feed only

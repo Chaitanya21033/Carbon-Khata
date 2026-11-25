@@ -1,0 +1,28 @@
+# CarbonKhata local services: PostgreSQL 16 (TimescaleDB) and Mosquitto MQTT.
+# Start: docker compose -f infra/docker-compose.yml up -d   (scripts\setup.ps1 does this for you)
+name: carbonkhata
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: carbonkhata
+      POSTGRES_PASSWORD: carbonkhata
+      POSTGRES_DB: carbonkhata
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carbonkhata -d carbonkhata"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+  mqtt:
+    image: eclipse-mosquitto:2
+    ports: ["1883:1883"]
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    restart: unless-stopped
+volumes:
+  pgdata:
