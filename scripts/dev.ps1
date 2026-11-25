@@ -55,5 +55,9 @@ try {
   }
 } finally {
   Say 'Stopping…' 'Yellow'
-  foreach ($k in @($procs.Keys)) { try { Stop-Process -Id $procs[$k].p.Id -Force -ErrorAction SilentlyContinue; Get-CimInstance Win32_Process -Filter "ParentProcessId=$($procs[$k].p.Id)" -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } } catch { } }
+  foreach ($k in @($procs.Keys)) {
+    $id = $procs[$k].p.Id
+    # Kill the whole tree (npm.cmd -> node -> vite) on Windows; plain stop elsewhere.
+    if ($env:OS -eq 'Windows_NT') { & taskkill /T /F /PID $id *> $null } else { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }
+  }
 }
