@@ -178,6 +178,7 @@ def seed(db=None):
 
 def truncate_all():
     with engine.begin() as c:
+        c.execute(text("SET LOCAL lock_timeout = '15s'"))
         names = ", ".join(f'"{t.name}"' for t in reversed(Base.metadata.sorted_tables))
         c.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
 

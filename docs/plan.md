@@ -1,6 +1,6 @@
 # CarbonKhata: build plan (for approval)
 
-Status: **draft, waiting for approval**. No product code has been written yet.
+Status: **approved and built** (see README.md and docs/decisions.md for what was decided along the way).
 
 ## 0. What I read and checked
 

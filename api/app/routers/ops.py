@@ -911,10 +911,12 @@ def feed_event(body: ClusterEventIn, ctx: Ctx = Depends(require("device")), db: 
 
 # ======================================================================== ops (demo reset; disabled in production by config)
 @r.post("/ops/reset-demo", tags=["ops"], include_in_schema=False)
-def reset_demo(ctx: Ctx = Depends(require("device", "admin"))):
+def reset_demo(ctx: Ctx = Depends(require("device", "admin")), db: Session = Depends(get_db)):
     from ..config import settings
     if not settings.demo_reset_enabled:
         raise HTTPException(403, "Demo reset is disabled on this server")
+    db.rollback()  # release this request's own read locks before TRUNCATE
+    db.close()
     from ..seed.run import reset_all
     reset_all()
     return {"ok": True}
