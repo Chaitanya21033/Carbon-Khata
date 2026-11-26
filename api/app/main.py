@@ -36,6 +36,23 @@ app.include_router(core.r)
 app.include_router(ops.r)
 
 
+def _openapi():
+    """Add the two auth schemes so 'Authorize' in /docs works: a user JWT (Bearer) or a device key."""
+    if app.openapi_schema:
+        return app.openapi_schema
+    from fastapi.openapi.utils import get_openapi
+    sch = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes)
+    sch.setdefault("components", {})["securitySchemes"] = {
+        "bearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "Sign in on the app, then Data sources → APIs → Copy my token"},
+        "deviceKey": {"type": "apiKey", "in": "header", "name": "X-Device-Key", "description": "Gateway / device key from DEVICE_KEYS in .env"}}
+    sch["security"] = [{"bearerAuth": []}, {"deviceKey": []}]
+    app.openapi_schema = sch
+    return sch
+
+
+app.openapi = _openapi
+
+
 @app.get("/health", tags=["ops"])
 def health():
     return {"ok": True, "mqtt": registry._mqtt is not None and registry._mqtt.is_connected()}

@@ -47,7 +47,10 @@ if ($lan) {
   Write-Host "`nOn a phone on the same Wi-Fi:" -ForegroundColor White
   Write-Host "   Product (sign in as the operator):   http://${lan}:5173" -ForegroundColor White
   Write-Host "   Field-device pages:                  http://${lan}:5174/#/devices" -ForegroundColor White
-  Write-Host "   (If Windows asks, allow Node.js on PRIVATE networks. Photos from phones are saved in $(Join-Path $Root 'captures'))" -ForegroundColor DarkGray
+  Write-Host "   API docs (Swagger):                  http://${lan}:5173/docs" -ForegroundColor White
+  Write-Host "   Device API docs:                     http://${lan}:5174/sim/docs" -ForegroundColor White
+  Write-Host "   Phone cannot connect? Run once:      scripts\allow-phone.ps1   (firewall + Private network)" -ForegroundColor DarkGray
+  Write-Host "   Photos from phones are saved in      $(Join-Path $Root 'captures')" -ForegroundColor DarkGray
 }
 $colors = @{ api = 'Green'; web = 'Cyan'; sim = 'Yellow'; controls = 'Magenta' }
 Write-Host "`nRunning. Product: http://localhost:5173  ·  Demo controls: http://localhost:5174  ·  API docs: http://localhost:8000/docs  ·  Ctrl+C to stop`n" -ForegroundColor White

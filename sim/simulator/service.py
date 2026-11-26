@@ -214,7 +214,7 @@ class Sim:
 
 
 sim: Sim | None = None
-app = FastAPI(title="CarbonKhata simulator (demo controls)", docs_url="/docs")
+app = FastAPI(title="CarbonKhata simulator: field devices & demo controls", docs_url="/sim/docs", openapi_url="/sim/openapi.json", redoc_url=None)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 
