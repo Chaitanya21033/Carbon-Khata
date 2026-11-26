@@ -102,6 +102,8 @@ class LiveTransport:
         self.pub("asset/bess", {"ts": ts, "soc": f["soc"], "inKw": fl["bessIn"], "outKw": fl["bessOut"]})
         self.pub("asset/genset", {"ts": ts, "kw": fl["genset"]})
         self.pub("asset/flex", {"ts": ts, "pendingKwh": f["flexPendingKwh"], "runKw": fl["flexRun"], "demandKw": f["flexGenKw"]})
+        for k, v in (f.get("sensors") or {}).items():
+            self.pub(f"sensor/{k}", {"ts": ts, "value": v})
         self.pub("meter/incomer", {"ts": ts, "loadKw": fl["load"], "importBySource": {k: fl[k] for k in ("green", "rtm", "dam", "discom")}, "exportKw": fl["export"],
                                    "shedKw": fl["shed"], "kva": f["kva"], "pf": f["pf"], "gridDown": f["gridDown"], "dgKw": f["dgKw"]})
 

@@ -15,6 +15,7 @@ import { Credits, Brsr } from './screens/Sustain';
 import Cluster from './screens/Cluster';
 import Onboarding from './screens/Onboarding';
 import SourcesDrawer from './screens/Sources';
+import { PhoneDrawer, useNetwork } from './ui/Shopfloor';
 import Batches, { BatchPublic } from './screens/Batches';
 import { PartPublic } from './screens/Oem';
 
@@ -69,7 +70,9 @@ export default function App() {
   const { engine } = useSim();
   const [route, go] = useRoute();
   const [sources, setSources] = useState(false);
+  const [phone, setPhone] = useState(false);
   const [more, setMore] = useState(false);
+  useNetwork();
 
   if (route.startsWith('b-')) return <><BatchPublic id={route.slice(2)} />{toast && <div className="toast" role="status">{toast}</div>}</>;
   if (route.startsWith('p-')) return <PartPublic id={route.slice(2)} />;
@@ -113,6 +116,7 @@ export default function App() {
           <span className="title">{cur.label}</span>
           <span className="spacer" />
           <span className="chip warn desktop-only">Demo data</span>
+          <button className="btn sm desktop-only" onClick={() => setPhone(true)} title="Open this app on a phone on the same Wi-Fi"><Icon name="phone" size={16} />Open on phone</button>
           <button className="btn sm" onClick={() => setSources(true)}><Icon name="globe" size={16} /><span className="desktop-only">Data sources</span></button>
           <span className="chip neutral desktop-only" title="Signed in as">{persona.title}</span>
           <button className="iconbtn mobile-only" onClick={() => { actions.signOut(); location.hash = ''; }} aria-label="Switch login"><Icon name="logout" size={18} /></button>
@@ -136,6 +140,7 @@ export default function App() {
         </Drawer>
       )}
       {sources && <SourcesDrawer onClose={() => setSources(false)} />}
+      {phone && <PhoneDrawer onClose={() => setPhone(false)} />}
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );

@@ -39,6 +39,16 @@ if (-not $NoSim) {
 }
 if ($Demo) { Wait-Port 5173 60 | Out-Null; Start-Process 'http://localhost:5173'; if (-not $NoSim) { Wait-Port 5174 60 | Out-Null; Start-Process 'http://localhost:5174' } }
 
+$lan = $null
+try {
+  $lan = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop | Where-Object { $_.IPAddress -notmatch '^(127\.|169\.254\.)' -and $_.InterfaceAlias -notmatch 'vEthernet|WSL|Loopback|VirtualBox|VMware' -and $_.PrefixOrigin -in @('Dhcp', 'Manual') } | Sort-Object InterfaceMetric | Select-Object -First 1).IPAddress
+} catch { }
+if ($lan) {
+  Write-Host "`nOn a phone on the same Wi-Fi:" -ForegroundColor White
+  Write-Host "   Product (sign in as the operator):   http://${lan}:5173" -ForegroundColor White
+  Write-Host "   Field-device pages:                  http://${lan}:5174/#/devices" -ForegroundColor White
+  Write-Host "   (If Windows asks, allow Node.js on PRIVATE networks. Photos from phones are saved in $(Join-Path $Root 'captures'))" -ForegroundColor DarkGray
+}
 $colors = @{ api = 'Green'; web = 'Cyan'; sim = 'Yellow'; controls = 'Magenta' }
 Write-Host "`nRunning. Product: http://localhost:5173  ·  Demo controls: http://localhost:5174  ·  API docs: http://localhost:8000/docs  ·  Ctrl+C to stop`n" -ForegroundColor White
 try {

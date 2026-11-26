@@ -2,6 +2,7 @@ import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Icon } from './Icon';
 import './styles.css';
+import { DeviceIndex, DevicePage } from './Devices';
 
 type DeviceId = 'meters' | 'stores' | 'line' | 'paint' | 'docs' | 'grid';
 interface State {
@@ -115,6 +116,11 @@ function ControlPanel() {
         </div>
       </section>
       <section>
+        <h4>Field devices (sensors & CO₂ analysers)</h4>
+        <a className="cbtn" href="#/devices" target="_blank" rel="noreferrer">Open device pages</a>
+        <div className="chint">One page per meter, inverter, BMS, genset and CO₂ analyser: watch, override, or take it offline.</div>
+      </section>
+      <section>
         <h4>Data</h4>
         <button className="cbtn" onClick={() => { if (confirm('Reset all demo data? The database is re-seeded and the simulator restarts from 10 Nov 05:50.')) cmd('reset'); }}>Reset all demo data</button>
         <div className="chint">Space = play / pause. All companies and figures are simulated.</div>
@@ -127,4 +133,12 @@ function ControlPanel() {
   );
 }
 
-createRoot(document.getElementById('root')!).render(<StrictMode><ControlPanel /></StrictMode>);
+function Router() {
+  const [h, setH] = useState(location.hash);
+  useEffect(() => { const f = () => setH(location.hash); window.addEventListener('hashchange', f); return () => window.removeEventListener('hashchange', f); }, []);
+  if (h.startsWith('#/device/')) return <DevicePage id={h.slice('#/device/'.length)} />;
+  if (h.startsWith('#/devices')) return <DeviceIndex />;
+  return <ControlPanel />;
+}
+
+createRoot(document.getElementById('root')!).render(<StrictMode><Router /></StrictMode>);

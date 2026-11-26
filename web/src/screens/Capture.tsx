@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CURRENT_MONTH, REGISTERS, useStore } from '../state/store';
 import { api } from '../api/client';
+import { PhotoCapture, PhotosCard } from '../ui/Shopfloor';
 import { fmt, monthLabel } from '../domain/util';
 import { Icon } from '../ui/Icon';
 import { Chip, PageHead, Seg } from '../ui/kit';
@@ -103,6 +104,12 @@ function Capture() {
         </div>
 
         <div className="card stack-sm">
+          <h3>Photo evidence</h3>
+          <p className="small muted">Meter display, slip, delivery or anything on the shop floor. Saved on the plant server and shown on the dashboard straight away.</p>
+          <PhotoCapture />
+        </div>
+
+        <div className="card stack-sm">
           <div className="row-between"><h3>Electricity bill</h3>{bill && <Chip tone="info">Pre-filled from meter feed</Chip>}</div>
           <label className="camera" style={{ cursor: 'pointer', aspectRatio: '4 / 3' }}>
             <span className="stack-sm" style={{ alignItems: 'center' }}><Icon name="file" size={36} /><span className="small">{docId ? 'Bill uploaded' : 'Upload the bill (PDF or photo)'}</span></span>
@@ -129,11 +136,13 @@ function Capture() {
           <div className="field"><label htmlFor="reg">Register</label><select id="reg" className="input" value={reg} onChange={(e) => setReg(e.target.value)}>{regs.map((r) => <option key={r.id} value={r.id}>{r.label} ({r.unit})</option>)}</select></div>
           <div className="field"><label htmlFor="q">Quantity issued</label><input id="q" className="input num" inputMode="decimal" style={{ fontSize: 20 }} value={qty} onChange={(e) => setQty(e.target.value.replace(/[^\d.]/g, ''))} placeholder="0" /></div>
           <div className="field"><label htmlFor="doc">Slip / challan no.</label><input id="doc" className="input" value={doc} onChange={(e) => setDoc(e.target.value)} placeholder="e.g. CH-2291" /></div>
+          <PhotoCapture compact docRef={doc.trim() || undefined} />
           <button className="btn primary" disabled={!Number(qty)} onClick={saveEntry}>Post entry</button>
           <label className="row small"><input type="checkbox" checked={s.offline} onChange={(e) => actions.setOffline(e.target.checked)} />Work offline (queue on this phone)</label>
           <p className="xs muted">Try an extra zero (e.g. 32000 kg of steel) or reuse a slip number: the server holds both for review.</p>
         </div>
       </div>
+      <PhotosCard limit={4} />
     </div>
   );
 }

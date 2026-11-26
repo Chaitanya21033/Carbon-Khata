@@ -104,3 +104,36 @@ Open-Meteo (solar forecast) needs no key. On a laptop with internet it shows **l
 | Live plant shows "Waiting for the plant's live feed" | The simulator is not running (`dev.ps1` without `-NoSim`), or Mosquitto is down |
 | Scripts blocked by execution policy | Use `powershell -ExecutionPolicy Bypass -File …` as shown |
 | Start over completely | `docker compose -f infra\docker-compose.yml down -v`, then `scripts\setup.ps1` |
+
+## Phones on the same Wi-Fi (live capture demo)
+
+When `dev.ps1` starts, it prints the laptop's Wi-Fi address, for example `http://192.168.1.23:5173`. The product header also has an **Open on phone** button that shows a QR code for that address.
+
+1. **Firewall.** The first time, Windows asks whether Node.js may use the network: tick **Private networks** and click Allow. If you missed the prompt, run this once in an **administrator** PowerShell:
+   ```powershell
+   netsh advfirewall firewall add rule name="CarbonKhata dev" dir=in action=allow protocol=TCP localport=5173,5174 profile=private
+   ```
+   Also make sure the Wi-Fi is set as a *Private* network in Windows.
+2. **Phone (operator).**
+   1. Open the address and sign in as **Store keeper (Operator)**.
+   2. Open **Capture**. You can take a photo under **Photo evidence**, or post a register entry with **Attach slip photo**.
+3. **Laptop (custodian or owner).** Keep **Live plant** open. The entry animates through the data-flow diagram, and the photo appears under *Photos from the shop floor* with a toast.
+4. **Where the photos go.** They are saved on the laptop in `captures\<date>\HHMMSS_<kind>_<user>_<slip>.jpg`, inside the project folder. Each upload is also in the audit log. Uploading the same file twice is refused (V10).
+
+## Field-device pages (sensors and CO₂ analysers)
+
+Open `http://<laptop-ip>:5174/#/devices` (also linked from the demo controls). It shows one page per device: 5 sub-meters, the main incomer, the solar inverter, the battery, the genset, and 3 CO₂ analysers (genset stack, paint-oven flue, welding-bay air). You can open the pages on different phones.
+
+Each page shows:
+- the live reading and the last two hours;
+- **Change the reading**: set a fixed value or add an offset, for N plant-minutes or until reset;
+- **Stop reporting**: simulates a dead gateway.
+
+Each page reads from the simulator's device API: `GET/POST /sim/devices/{id}`, `/override` and `/online`.
+
+The product only sees what the devices report: `GET /api/v1/sensors` and `GET /api/v1/sensors/{id}`. On **Live plant** it raises alerts when:
+- welding-bay CO₂ goes above 1,000 ppm;
+- the genset stack analyser drifts more than 15 % from the CO₂ calculated from metered kWh;
+- a device stops reporting.
+
+Try setting welding-bay air to 1,350 ppm, or the genset stack to +40 % at night when the genset runs.

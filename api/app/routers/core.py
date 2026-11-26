@@ -393,22 +393,97 @@ def add_bill(body: BillIn, ctx: Ctx = Depends(require(*CUSTODY)), db: Session = 
     return {"bill": b.id, "lines": out}
 
 
+KINDS = {"slip": "Slip / challan", "meter": "Meter display", "bill": "Electricity bill", "site": "Shop floor / other"}
+
+
+def _safe(t: str) -> str:
+    import re
+    return re.sub(r"[^A-Za-z0-9_-]+", "-", t).strip("-")[:40] or "x"
+
+
+def doc_json(d: Document) -> dict:
+    f = d.fields or {}
+    return {"id": d.id, "kind": d.kind, "kindLabel": KINDS.get(d.kind, d.kind), "filename": d.filename, "savedAs": f.get("savedAs"), "note": f.get("note"), "docRef": f.get("docRef"),
+            "by": f.get("by"), "role": f.get("role"), "size": f.get("size"), "contentType": f.get("contentType"), "at": d.created_at.isoformat(), "url": f"/api/v1/documents/{d.id}/file",
+            "image": (f.get("contentType") or "").startswith("image/")}
+
+
 @r.post("/documents", tags=["capture"])
-async def upload_document(kind: str = Form("bill"), file: UploadFile = File(...), ctx: Ctx = Depends(require(*PLANT_RW)), db: Session = Depends(get_db)):
+async def upload_document(kind: str = Form("slip"), note: str = Form(""), docRef: str = Form(""), file: UploadFile = File(...), ctx: Ctx = Depends(require(*PLANT_RW)),
+                          db: Session = Depends(get_db)):
+    """Photo or PDF from a phone or laptop (slip, meter display, bill, site). Saved on the server machine under
+    captures/<date>/ with a readable name, listed for the dashboard, and announced live over SSE."""
     data = await file.read()
+    if not data:
+        raise HTTPException(422, "Empty file")
+    if len(data) > 25 * 1024 * 1024:
+        raise HTTPException(413, "File is larger than 25 MB")
     sha = hashlib.sha256(data).hexdigest()
     dup = db.scalars(select(Document).where(Document.tenant_id == ctx.tenant_id, Document.sha256 == sha)).first()
     if dup:
-        raise HTTPException(409, f"V10: this document was already uploaded on {dup.created_at:%d %b %Y}.")
-    folder = Path(settings.storage_dir) / ctx.tenant_id
-    folder.mkdir(parents=True, exist_ok=True)
+        raise HTTPException(409, f"V10: this file was already uploaded on {dup.created_at:%d %b %Y %H:%M}.")
+    now_local = dt.datetime.now(dt.timezone(dt.timedelta(hours=5, minutes=30)))  # real IST wall time for file names
+    ext = Path(file.filename or "").suffix.lower() or (".jpg" if (file.content_type or "").startswith("image/") else ".bin")
     did = L.uid("doc")
-    path = folder / f"{did}_{Path(file.filename or 'upload').name}"
+    folder = Path(settings.storage_dir) / now_local.strftime("%Y-%m-%d")
+    folder.mkdir(parents=True, exist_ok=True)
+    name = f"{now_local:%H%M%S}_{_safe(kind)}_{_safe(ctx.actor)}{'_' + _safe(docRef) if docRef.strip() else ''}_{did[-6:]}{ext}"
+    path = folder / name
     path.write_bytes(data)
-    db.add(Document(id=did, tenant_id=ctx.tenant_id, kind=kind, filename=file.filename or "upload", path=str(path), sha256=sha))
-    audit(db, ctx.actor, ctx.role, "document_upload", kind, f"{file.filename} sha256:{sha[:12]}…", ctx.tenant_id, commit=False)
+    fields = {"note": note.strip() or None, "docRef": docRef.strip() or None, "by": ctx.actor, "role": ctx.role, "size": len(data), "contentType": file.content_type,
+              "savedAs": str(path.relative_to(Path(settings.storage_dir).parent)) if Path(settings.storage_dir).parent in path.parents else str(path)}
+    d = Document(id=did, tenant_id=ctx.tenant_id, kind=kind if kind in KINDS else "site", filename=file.filename or name, path=str(path), sha256=sha, fields=fields)
+    db.add(d)
+    audit(db, ctx.actor, ctx.role, "document_upload", KINDS.get(kind, kind), f"{name} ({len(data) // 1024} KB) sha256:{sha[:12]}…", ctx.tenant_id, commit=False)
     db.commit()
-    return {"id": did, "sha256": sha}
+    out = doc_json(d)
+    from .. import events
+    events.publish(ctx.tenant_id, "document", out)
+    from ..live.registry import get_twin, push_snapshot
+    tw = get_twin(ctx.tenant_id)
+    if tw:
+        tw.packet("docs", "entry", f"Photo: {KINDS.get(kind, kind).lower()} from {ctx.actor}")
+        tw.log("flow", f"{ctx.actor} uploaded a photo ({KINDS.get(kind, kind).lower()}{', ' + docRef if docRef.strip() else ''}). Saved as {name}.")
+        push_snapshot(tw, True)
+    return out
+
+
+@r.get("/documents", tags=["capture"])
+def list_documents(limit: int = 24, ctx: Ctx = Depends(require(*PLANT_RW, "admin")), db: Session = Depends(get_db)):
+    tid = plant_tenant_for(db, ctx)
+    q = select(Document).where(Document.tenant_id == tid).order_by(desc(Document.created_at)).limit(min(limit, 200))
+    return [doc_json(d) for d in db.scalars(q).all()]
+
+
+@r.get("/documents/{doc_id}/file", tags=["capture"])
+def document_file(doc_id: str, ctx: Ctx = Depends(require(*PLANT_RW, "admin")), db: Session = Depends(get_db)):
+    """The stored file (send the token as ?token= when used as an <img> source)."""
+    from fastapi.responses import FileResponse
+    d = db.get(Document, doc_id)
+    if not d or d.tenant_id != plant_tenant_for(db, ctx) or not Path(d.path).exists():
+        raise HTTPException(404, "File not found")
+    return FileResponse(d.path, media_type=(d.fields or {}).get("contentType") or None, filename=d.filename)
+
+
+@r.get("/system/network", tags=["admin"])
+def network():
+    """This machine's addresses on the local network, so phones on the same Wi-Fi can open the app."""
+    import socket
+    ips = []
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("10.255.255.255", 1))   # no packet is sent; picks the outbound interface
+        ips.append(s.getsockname()[0])
+        s.close()
+    except OSError:
+        pass
+    try:
+        for ip in socket.gethostbyname_ex(socket.gethostname())[2]:
+            if not ip.startswith("127.") and ip not in ips:
+                ips.append(ip)
+    except OSError:
+        pass
+    return {"ips": [i for i in ips if not i.startswith("172.") or len(ips) == 1], "hostname": socket.gethostname()}
 
 
 @r.post("/documents/{doc_id}/read", tags=["capture"])

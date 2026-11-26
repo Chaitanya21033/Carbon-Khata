@@ -51,7 +51,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       es.onerror = () => setConnected(false);
       es.addEventListener('twin', (m) => { const x = JSON.parse((m as MessageEvent).data) as Snapshot; setSnap((p) => (p ? { ...x, events: x.events } : x)); });
       es.addEventListener('packet', (m) => { const p = JSON.parse((m as MessageEvent).data) as Packet; packetFns.current.forEach((f) => f(p)); });
-      for (const k of ['ledger', 'passport', 'batch', 'cluster', 'ems.decision', 'reset', 'event']) {
+      for (const k of ['ledger', 'passport', 'batch', 'cluster', 'ems.decision', 'reset', 'event', 'document']) {
         es.addEventListener(k, (m) => {
           const data = JSON.parse((m as MessageEvent).data);
           eventFns.current.get(k)?.forEach((f) => f(data));
@@ -59,6 +59,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
           if (k === 'passport') inval('passports');
           if (k === 'batch') inval('fmcg');
           if (k === 'cluster') inval('cluster');
+          if (k === 'document') { qc.invalidateQueries({ queryKey: ['documents'] }); const d = data as { by?: string; kindLabel?: string }; if (d.by && d.by !== s.me?.name) notify(`New photo from ${d.by}: ${d.kindLabel?.toLowerCase()}`); }
           if (k === 'reset') { qc.invalidateQueries(); notify('Demo data was reset'); }
         });
       }

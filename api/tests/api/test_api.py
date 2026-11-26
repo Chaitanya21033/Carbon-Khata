@@ -180,3 +180,20 @@ def test_audit_chain_intact_and_append_only(client):
     with pytest.raises(Exception):
         with engine.begin() as c:
             c.execute(text("UPDATE audit_event SET detail='x'"))
+
+
+def test_phone_photo_saved_listed_and_served(client, tmp_path, monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "storage_dir", str(tmp_path / "captures"))
+    op = login(client, "ramesh@vardhan.example")
+    png = b"\x89PNG\r\n\x1a\n" + b"demo-slip-photo" * 50
+    r = client.post("/api/v1/documents", headers=op, data={"kind": "slip", "docRef": "CH-7781", "note": "diesel"}, files={"file": ("slip.png", png, "image/png")})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    saved = list((tmp_path / "captures").rglob("*.png"))
+    assert len(saved) == 1 and "Ramesh" in saved[0].name and "CH-7781" in saved[0].name
+    assert client.post("/api/v1/documents", headers=op, data={"kind": "slip"}, files={"file": ("again.png", png, "image/png")}).status_code == 409
+    pr = login(client, "priya@vardhan.example")
+    assert d["id"] in [x["id"] for x in client.get("/api/v1/documents", headers=pr).json()]
+    assert client.get(d["url"], headers=pr).content == png
+    assert client.get(d["url"], headers=login(client, "esg@oem-a.example")).status_code == 403

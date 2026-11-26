@@ -210,9 +210,12 @@ def _handle(topic: str, payload: dict):
             sp = tw.request_plan(payload)
             result = {**sp, "reqId": payload.get("reqId")}
             publish(f"plant/{tenant}/ems/setpoint", result)
+        elif kind == "sensor":
+            ts = iso_to_plant_ms(payload["ts"])
+            _frames.setdefault((tenant, ts), {"meters": {}, "assets": {}, "sensors": {}})["sensors"][parts[3]] = payload.get("value")
         elif kind in ("meter", "asset"):
             ts = iso_to_plant_ms(payload["ts"])
-            fr = _frames.setdefault((tenant, ts), {"meters": {}, "assets": {}})
+            fr = _frames.setdefault((tenant, ts), {"meters": {}, "assets": {}, "sensors": {}})
             if kind == "meter" and parts[3] == "incomer":
                 if payload.get("glitch"):
                     tw.telemetry({"ts": ts, "glitch": payload["glitch"]})
@@ -263,7 +266,7 @@ def assemble(ts: int, fr: dict, inc: dict) -> dict:
              "export": inc.get("exportKw", 0), "curtail": sol.get("curtailKw", 0), "shed": inc.get("shedKw", 0)}
     base = sum(m.get(k, 0) for k in ("comp", "weld", "paint", "light", "util"))
     return {"ts": ts, "meters": m, "flows": flows, "baseKw": base, "flexGenKw": flex.get("demandKw", 0), "flexPendingKwh": flex.get("pendingKwh", 0), "gridDown": bool(inc.get("gridDown")),
-            "soc": bess.get("soc"), "pf": inc.get("pf", 0.945), "kva": inc.get("kva"), "dgKw": inc.get("dgKw", 0)}
+            "soc": bess.get("soc"), "pf": inc.get("pf", 0.945), "kva": inc.get("kva"), "dgKw": inc.get("dgKw", 0), "sensors": fr.get("sensors", {})}
 
 
 def publish(topic: str, payload: dict):
@@ -286,7 +289,7 @@ def start_mqtt():
     import paho.mqtt.client as mqtt
 
     def on_connect(c, userdata, flags, rc, props=None):
-        c.subscribe([("plant/+/meter/+", 0), ("plant/+/asset/+", 0), ("plant/+/ems/request", 0), ("plant/+/device/+/status", 0)])
+        c.subscribe([("plant/+/meter/+", 0), ("plant/+/asset/+", 0), ("plant/+/sensor/+", 0), ("plant/+/ems/request", 0), ("plant/+/device/+/status", 0)])
         log.info("MQTT connected to %s:%s", settings.mqtt_host, settings.mqtt_port)
 
     def on_message(c, userdata, msg):

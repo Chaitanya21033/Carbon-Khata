@@ -14,8 +14,16 @@ export function Qr({ text, size = 160, label }: { text: string; size?: number; l
   );
 }
 
-/** Link a QR opens: the public page of this deployment (no login). Set VITE_PUBLIC_BASE_URL when the app is hosted. */
+let lanBase: string | null = null;
+/** Set from GET /system/network so QR codes opened on a laptop at localhost still work on phones on the same Wi-Fi. */
+export function setLanBase(b: string | null) { lanBase = b; }
+export function appBase(): string {
+  const env = import.meta.env.VITE_PUBLIC_BASE_URL as string | undefined;
+  if (env) return env.replace(/\/$/, '');
+  const local = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
+  return local && lanBase ? lanBase : location.origin;
+}
+/** Link a QR opens: the public page of this deployment (no login). */
 export function packLink(name: string) {
-  const base = (import.meta.env.VITE_PUBLIC_BASE_URL as string | undefined) || location.href.split('#')[0];
-  return `${base}#${name}`;
+  return `${appBase()}/#${name}`;
 }

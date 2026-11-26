@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -232,6 +232,66 @@ def get_state():
 @app.post("/sim/cmd")
 def post_cmd(c: Cmd):
     return sim.command(c.name, c.v, c.d)
+
+
+# ---------------- field devices: one API (and one web page) per sensor ----------------
+from .devices import BY_ID, SENSORS  # noqa: E402
+
+
+def _dev(d: tuple, hist: int = 0) -> dict:
+    e = sim.e
+    sid, label, unit, kind, overridable, desc = d
+    o = e.overrides.get(sid)
+    out = {"id": sid, "label": label, "unit": unit, "kind": kind, "overridable": overridable, "description": desc, "value": e.readings.get(sid),
+           "online": sid not in e.sensor_offline and e.online["meters"], "override": o, "clock": e.clock,
+           "topic": f"plant/vbw/{'sensor' if kind == 'carbon' else 'meter' if sid in ('incomer', 'comp', 'weld', 'paint', 'light', 'util') else 'asset'}/{sid}"}
+    if hist:
+        out["history"] = e.history.get(sid, [])[-hist:]
+    return out
+
+
+@app.get("/sim/devices")
+def list_devices():
+    with sim.lock:
+        return [_dev(d) for d in SENSORS]
+
+
+@app.get("/sim/devices/{sid}")
+def get_device(sid: str, points: int = 120):
+    if sid not in BY_ID:
+        raise HTTPException(404, "Unknown device")
+    with sim.lock:
+        return _dev(BY_ID[sid], points)
+
+
+class OverrideIn(BaseModel):
+    mode: str = "fixed"          # fixed | offset | auto
+    value: float | None = None
+    minutes: int | None = None   # None = until set back to automatic
+
+
+@app.post("/sim/devices/{sid}/override")
+def override_device(sid: str, body: OverrideIn):
+    if sid not in BY_ID or not BY_ID[sid][4]:
+        raise HTTPException(400, "This device's reading cannot be overridden")
+    if body.mode not in ("fixed", "offset", "auto"):
+        raise HTTPException(422, "mode must be fixed, offset or auto")
+    with sim.lock:
+        sim.e.set_override(sid, body.mode, body.value, body.minutes)
+        return _dev(BY_ID[sid], 120)
+
+
+class OnlineIn(BaseModel):
+    online: bool
+
+
+@app.post("/sim/devices/{sid}/online")
+def device_online(sid: str, body: OnlineIn):
+    if sid not in BY_ID:
+        raise HTTPException(404, "Unknown device")
+    with sim.lock:
+        sim.e.set_sensor_online(sid, body.online)
+        return _dev(BY_ID[sid], 120)
 
 
 def main():

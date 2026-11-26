@@ -104,6 +104,11 @@ class SimEngine:
         self.log: list[dict] = []
         self.today = {"bodies": 0}
         self.last = {"kw": 0.0, "kva": 0.0, "soc": self.site.soc}
+        # field devices: per-device overrides set from their own pages, offline flags and recent history
+        self.overrides: dict[str, dict] = {}
+        self.sensor_offline: set[str] = set()
+        self.readings: dict[str, float] = {}
+        self.history: dict[str, list] = {}
         if warm_wip:
             for st, left in ((1, 40), (1, 110), (2, 20), (3, 60), (3, 95), (4, 10)):
                 self.token_seq += 1
@@ -182,20 +187,23 @@ class SimEngine:
             crit = 0.45
             comp *= crit; weld = 0; paint = 0; light *= crit; util *= crit
         self.pf = min(0.99, max(0.9, self.pf + n(0.002) + (0.945 - self.pf) * 0.05))
+        comp, weld, paint, light, util = (self._ov("comp", comp), self._ov("weld", weld), self._ov("paint", paint), self._ov("light", light), self._ov("util", util))
         base_kw = max(0, comp) + max(0, weld) + max(0, paint) + light + util
+        if "bess" in self.overrides:
+            self.site.soc = max(0.0, min(1.0, self._ov("bess", self.site.soc * 100) / 100))
 
         blk = self.block
         working = act > 0.3
         flex_gen = 32 if working else 0
         self.flex_queue += flex_gen / 60
         if self.plan_block != blk:
-            solar_d = self.solar_kw()
+            solar_d = self._ov("solar", self.solar_kw())
             sp = self.t.request_plan({"ts": self.clock, "block": blk, "loadKw": base_kw + (self.assets.flexRunKw if self.flex_queue > 1 else 0), "flexPendingKwh": self.flex_queue,
                                       "working": working, "gridDown": cut, "solarKw": solar_d, "soc": self.site.soc})
             if sp:
                 self.sp = sp
             self.plan_block = blk
-        solar = self.solar_kw()
+        solar = self._ov("solar", self.solar_kw())
         f = site_minute(self.site, self.assets, self.sp, solar, base_kw, self.flex_queue, cut)
         self.flex_queue = max(0.0, self.flex_queue - f["flexRun"] / 60)
         dg = 0.0
@@ -206,9 +214,11 @@ class SimEngine:
         kva = imp / self.pf
         meters = {"comp": max(0, comp), "weld": max(0, weld), "paint": max(0, paint), "light": light, "util": util}
         self.last = {"kw": f["load"], "kva": kva, "soc": self.site.soc, "imp": imp, "solar": solar}
+        sensors = self._sensors(meters, f, imp, painting and working)
         if self.online["meters"]:
-            self.t.telemetry({"ts": self.clock, "meters": meters, "flows": f, "baseKw": base_kw, "flexGenKw": flex_gen, "flexPendingKwh": self.flex_queue, "gridDown": cut,
-                              "soc": self.site.soc, "pf": self.pf, "kva": kva, "dgKw": dg, "price": None})
+            self.t.telemetry({"ts": self.clock, "meters": {k: v for k, v in meters.items() if k not in self.sensor_offline}, "flows": f, "baseKw": base_kw, "flexGenKw": flex_gen,
+                              "flexPendingKwh": self.flex_queue, "gridDown": cut, "soc": self.site.soc, "pf": self.pf, "kva": kva, "dgKw": dg, "price": None,
+                              "sensors": {k: v for k, v in sensors.items() if k in ("co2_stack", "co2_flue", "co2_air") and k not in self.sensor_offline}})
         if not cut and self.power_cut_was_on:
             self.power_cut_was_on = False
             self._after_power_cut()
@@ -242,6 +252,45 @@ class SimEngine:
             self.today = {"bodies": 0}
         if m == 0 and h in (6, 14, 22):
             self.note("info", f"Shift {self.shift} started.")
+
+    # ---------- field devices ----------
+    def _ov(self, dev: str, v: float) -> float:
+        o = self.overrides.get(dev)
+        if not o:
+            return v
+        if o.get("until") and self.clock > o["until"]:
+            self.overrides.pop(dev, None)
+            self.note("info", f"Override on {dev} expired: back to automatic.")
+            return v
+        return float(o["value"]) if o["mode"] == "fixed" else v + float(o["value"])
+
+    def _sensors(self, meters: dict, f: dict, imp: float, oven_firing: bool) -> dict:
+        """Readings of every field device this minute (carbon analysers are physical measurements of the processes)."""
+        m = self.minute
+        wave = math.sin(2 * math.pi * m / 7)
+        co2_stack = f["genset"] * 0.61 * (1 + 0.02 * wave)                    # kg/h ≈ kW × 0.61 kg/kWh
+        co2_flue = (13.0 + meters["paint"] * 0.05) * (1 + 0.03 * wave) if oven_firing and meters["paint"] > 20 else 0.4
+        co2_air = 450 + meters["weld"] * 2.2 + 15 * wave                       # ppm
+        vals = {**meters, "incomer": imp, "solar": f["solar"], "bess": self.site.soc * 100, "genset": f["genset"],
+                "co2_stack": self._ov("co2_stack", co2_stack), "co2_flue": self._ov("co2_flue", co2_flue), "co2_air": self._ov("co2_air", co2_air)}
+        self.readings = vals
+        for k, v in vals.items():
+            h = self.history.setdefault(k, [])
+            h.append([self.clock, round(v, 3)])
+            del h[:-180]
+        return vals
+
+    def set_override(self, dev: str, mode: str, value: float | None, minutes: int | None):
+        if mode == "auto" or value is None:
+            self.overrides.pop(dev, None)
+            self.note("info", f"{dev}: back to automatic.")
+            return
+        self.overrides[dev] = {"mode": mode, "value": value, "until": self.clock + minutes * 60_000 if minutes else None}
+        self.note("warn", f"{dev}: reading overridden ({mode} {value}{f' for {minutes} min' if minutes else ''}).")
+
+    def set_sensor_online(self, dev: str, online: bool):
+        (self.sensor_offline.discard if online else self.sensor_offline.add)(dev)
+        self.note("ok" if online else "warn", f"{dev} {'back online' if online else 'stopped reporting'}.")
 
     def _step_line(self, act: float):
         if act <= 0.3:

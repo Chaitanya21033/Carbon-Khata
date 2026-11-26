@@ -342,3 +342,19 @@ th.sticky-col { background: var(--surface-muted); z-index: 2; }
 .pub .banner { flex-wrap: nowrap; align-items: flex-start; }
 .pub-back { align-self: flex-start; background: rgba(255,255,255,.18); color: #fff; border: 0; border-radius: 999px; padding: 6px 12px; font-weight: 600; cursor: pointer; margin-bottom: 8px; min-height: 34px; }
 .iconbtn:disabled { opacity: .35; cursor: default; }
+
+/* ---- field-device pages (demo controls app) ---- */
+.dev-page { max-width: 720px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.dev-back { color: var(--primary); font-weight: 600; text-decoration: none; }
+.dev-head h1 { font-size: 24px; margin: 2px 0 4px; }
+.dev-head.carbon { border-top: 4px solid #8A6FD1; } .dev-head.energy { border-top: 4px solid #2EC4B6; }
+.dev-kind { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+.dev-value { display: flex; align-items: baseline; gap: 8px; margin: 10px 0; } .dev-value .num { font-size: 56px; font-weight: 700; font-family: var(--font-head); }
+.dev-unit { font-size: 20px; color: var(--text-muted); }
+.dev-spark { display: block; min-height: 60px; }
+.dev-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.dev-tile { display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: var(--text); }
+.dev-tile.carbon { border-left: 4px solid #8A6FD1; } .dev-tile.energy { border-left: 4px solid #2EC4B6; }
+.pill { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--surface-2, #eef2ef); }
+.pill.ok { background: #DDF3E6; color: #0B5D3B; } .pill.bad { background: #FBE0DE; color: #B42318; } .pill.warn { background: #FFF1CC; color: #8A5A00; }
+.dev-page .field { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }

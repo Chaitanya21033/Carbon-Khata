@@ -7,6 +7,7 @@ import { monthEmissions } from '../domain/emissions';
 import { fmt } from '../domain/util';
 import { PLANT } from '../domain/seed';
 import { Icon } from '../ui/Icon';
+import { PhotosCard, SensorsCard, type SensorView } from '../ui/Shopfloor';
 import { Chip } from '../ui/kit';
 
 const COL: Record<string, string> = { comp: '#4C9BE8', weld: '#F2A900', paint: '#E8743B', light: '#9FD5AE', util: '#7C8C84' };
@@ -123,6 +124,8 @@ export default function Live() {
         <div className="card kpi"><span className="k-label">Held for review</span><span className="k-value" style={{ color: e.quarantine.length ? 'var(--danger)' : undefined }}>{e.quarantine.length}</span><span className="k-sub">{e.totals.flagged} caught since start</span></div>
       </div>
 
+      <SensorsCard sensors={(e as unknown as { sensors: SensorView[] }).sensors} />
+      <PhotosCard />
       <div className="card row-between" style={{ padding: '10px 14px' }}>
         <span className="small"><strong>Grid now:</strong> RTM ₹{e.last.price.toFixed(2)}/kWh · stress {e.market.stress}/100 · solar {fmt(e.last.solar, 0)} kW · battery {fmt(e.ems.bess.soc * 100, 0)}% {e.last.bess > 1 ? '(discharging)' : e.last.bess < -1 ? '(charging)' : ''} · genset {e.last.genset > 0 ? 'on' : 'off'} · {e.last.exp > 1 ? `exporting ${fmt(e.last.exp, 0)} kW` : `importing ${fmt(e.last.imp, 0)} kW`}</span>
         <span className="small" style={{ color: 'var(--success)' }}>₹{fmt(e.ems.last24().naiveCost - e.ems.last24().cost, 0)} saved in last 24 h · <a href="#/energy">Energy & grid →</a></span>

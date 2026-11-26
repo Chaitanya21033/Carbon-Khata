@@ -35,6 +35,23 @@ OEMS = {
     "B": {"name": "OEM B", "sub": "Construction equipment", "steelEf": 2.3, "steelNote": "BF-BOF steel, India average"},
     "C": {"name": "OEM C", "sub": "Export to EU (CBAM)", "steelEf": 1.55, "steelNote": "Mill-certified lower-carbon steel"},
 }
+# Installed field devices (the plant's device register). Readings arrive over MQTT / HTTP; the product never sets them.
+SENSORS = [
+    {"id": "incomer", "label": "Main incomer (HT)", "unit": "kW", "kind": "energy"},
+    {"id": "comp", "label": "Compressor", "unit": "kW", "kind": "energy"},
+    {"id": "weld", "label": "Welding bay", "unit": "kW", "kind": "energy"},
+    {"id": "paint", "label": "Paint shop & oven", "unit": "kW", "kind": "energy"},
+    {"id": "light", "label": "Lighting", "unit": "kW", "kind": "energy"},
+    {"id": "util", "label": "Utilities & office", "unit": "kW", "kind": "energy"},
+    {"id": "solar", "label": "Rooftop solar inverter", "unit": "kW", "kind": "energy"},
+    {"id": "bess", "label": "Battery (BMS)", "unit": "%", "kind": "energy"},
+    {"id": "genset", "label": "Gas genset controller", "unit": "kW", "kind": "energy"},
+    {"id": "co2_stack", "label": "Genset stack CO₂ analyser", "unit": "kg/h", "kind": "carbon"},
+    {"id": "co2_flue", "label": "Paint-oven flue CO₂ analyser", "unit": "kg/h", "kind": "carbon"},
+    {"id": "co2_air", "label": "Welding-bay air CO₂ monitor", "unit": "ppm", "kind": "carbon"},
+]
+CO2_AIR_LIMIT_PPM = 1000      # indoor-air action level used for the welding-bay alert
+STACK_TOLERANCE = 0.15        # measured vs calculated genset CO₂ (kWh × 0.61) before raising a calibration alert
 EF = {"grid": 0.71, "diesel": 2.68, "lpg": 2.98, "co2": 1.0}
 CO2_PER_BODY_KG = 21          # shielding gas issued when a body leaves welding (scope 1, mass balance)
 LPG_PER_BODY_KG = 2.2         # paint-oven LPG per body
@@ -114,6 +131,9 @@ class PlantTwin:
         self.interval = {m["id"]: 0.0 for m in METERS} | {"import": 0.0, "export": 0.0, "solar": 0.0, "kvah": 0.0}
         self.last_comp_cum = None
         self.rn = {"re": 0.0, "tot": 0.0}
+        self.sensor_state: dict[str, dict] = {}
+        self.sensor_hist: dict[str, list] = {}
+        self._alert_at: dict[str, int] = {}
         self.day_index = -1
 
     # ---------- helpers ----------
@@ -197,6 +217,7 @@ class PlantTwin:
         self.series.append(self.last)
         del self.series[:-240]
         working = self.working(clock)
+        self._sensors(clock, meters, f, imp, {**(frame.get("sensors") or {}), **({"bess": frame["soc"] * 100} if frame.get("soc") is not None else {})})
         self._attribute(f, imp, working)
         # machine health: compressor idle draw vs 38 kW benchmark
         comp = meters.get("comp", 0)
@@ -254,6 +275,44 @@ class PlantTwin:
         if not grid_down and getattr(self, "_grid_was_down", False):
             self.log("ok", "Grid power restored.")
         self._grid_was_down = grid_down
+
+    def _alert(self, key: str, clock: int, level: str, text: str, every_min: int = 30):
+        if clock - self._alert_at.get(key, -10**15) >= every_min * 60_000:
+            self._alert_at[key] = clock
+            self.log(level, text)
+            self.machine_alerts.insert(0, {"t": clock, "machine": key, "text": text})
+            del self.machine_alerts[20:]
+
+    def _sensors(self, clock: int, meters: dict, f: dict, imp: float, extra: dict):
+        vals = {**{k: meters[k] for k in ("comp", "weld", "paint", "light", "util") if k in meters}, "incomer": imp, "solar": f["solar"], "genset": f["genset"], **extra}
+        for sid, v in vals.items():
+            self.sensor_state[sid] = {"value": v, "ts": clock}
+            h = self.sensor_hist.setdefault(sid, [])
+            h.append([clock, round(float(v), 3)])
+            del h[:-240]
+        for s in SENSORS:  # a device that stopped reporting
+            st = self.sensor_state.get(s["id"])
+            if st and clock - st["ts"] > 3 * 60_000:
+                self._alert(f"offline:{s['id']}", clock, "warn", f"{s['label']} has not reported since {(st['ts'] // 60_000 % 1440) // 60:02d}:{st['ts'] // 60_000 % 60:02d}. Readings from it are missing.", 120)
+        air = extra.get("co2_air")
+        if air is not None and air > CO2_AIR_LIMIT_PPM:
+            self._alert("co2_air", clock, "block", f"Welding-bay CO₂ {fmt(air)} ppm is above the {fmt(CO2_AIR_LIMIT_PPM)} ppm action level. Check extraction fans and shielding-gas flow.")
+        stack = extra.get("co2_stack")
+        if stack is not None:
+            calc = f["genset"] * GENSET_EF
+            if calc > 1 and abs(stack - calc) / calc > STACK_TOLERANCE:
+                self._alert("co2_stack", clock, "warn", f"Genset stack analyser reads {to_fixed_str(stack, 1)} kg/h against {to_fixed_str(calc, 1)} kg/h calculated from metered kWh ({to_fixed_str((stack / calc - 1) * 100, 0)} %). Calibrate the analyser or check the fuel meter.")
+            elif calc <= 1 and stack > 5:
+                self._alert("co2_stack", clock, "warn", f"Genset stack analyser reports {to_fixed_str(stack, 1)} kg/h while the genset is off. Analyser fault?")
+
+    def sensors_view(self, hist_points: int = 60) -> list[dict]:
+        out = []
+        for s in SENSORS:
+            st = self.sensor_state.get(s["id"])
+            stale = not st or self.clock - st["ts"] > 3 * 60_000
+            out.append({**s, "value": st["value"] if st else None, "ts": st["ts"] if st else None, "status": "no data" if not st else "stale" if stale else "live",
+                        "history": [p[1] for p in self.sensor_hist.get(s["id"], [])[-hist_points:]]})
+        return out
 
     def flag_meter_glitch(self, g: dict):
         item = {"id": f"q{self.pseq + 1}", "t": self.clock, "device": "meters", "registerId": "GRID_KWH", "line": "reading", "qty": 0, "rule": "V11",
@@ -400,7 +459,7 @@ class PlantTwin:
             "kw": sum(self.last[k] for k in ("comp", "weld", "paint", "light", "util")), "kgToday": self.kg_today(),
             "today": self.today, "totals": self.totals, "last": self.last, "series": self.series, "events": self.events[:80], "quarantine": self.quarantine,
             "tokens": [{"id": t["id"], "station": t["station"], "oem": t["oem"], "order": t["order"], "since": t.get("since")} for t in self.tokens],
-            "passports": self.passports if passports else [], "oemToday": self.oem_today, "machineAlerts": self.machine_alerts, "online": self.online, "queued": self.queued,
+            "passports": self.passports if passports else [], "sensors": self.sensors_view(), "oemToday": self.oem_today, "machineAlerts": self.machine_alerts, "online": self.online, "queued": self.queued,
             "stations": STATIONS, "meters": METERS, "devices": DEVICES, "oems": self.oems,
             "ems": {"settings": vars(e.settings), "solarKwp": e.assets.solarKwp, "bess": {"capKwh": e.assets.bessCapKwh, "powerKw": e.assets.bessPowerKw, "soc": e.soc},
                     "gen": {"kw": e.assets.gensetKw, "on": e.gen_on}, "market": e.market, "tomorrow": e.tomorrow, "current": cur, "plan": e.plan, "flows": e.flows,

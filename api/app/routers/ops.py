@@ -101,6 +101,25 @@ def production_event(body: ProdEvent, ctx: Ctx = Depends(require("device", "oper
     return {"ok": True}
 
 
+@r.get("/sensors", tags=["live"])
+def sensors(ctx: Ctx = Depends(require(*PLANT_VIEW, "device"))):
+    """Every installed field device (meters, inverter, BMS, genset, CO₂ analysers): latest reading, status and the last hour."""
+    tw = registry.get_twin("vbw" if ctx.role == "admin" else ctx.tenant_id)
+    if tw is None:
+        raise HTTPException(404, "No live feed for this plant")
+    return {"clock": tw.clock, "sensors": tw.sensors_view()}
+
+
+@r.get("/sensors/{sensor_id}", tags=["live"])
+def sensor(sensor_id: str, minutes: int = 240, ctx: Ctx = Depends(require(*PLANT_VIEW, "device"))):
+    """One device: metadata, latest reading and up to 4 hours of 1-minute history [[plant-time ms, value], …]."""
+    tw = registry.get_twin("vbw" if ctx.role == "admin" else ctx.tenant_id)
+    meta = next((x for x in tw.sensors_view(0) if x["id"] == sensor_id), None) if tw else None
+    if meta is None:
+        raise HTTPException(404, "Unknown sensor")
+    return {**meta, "history": tw.sensor_hist.get(sensor_id, [])[-min(minutes, 240):]}
+
+
 class IngestIn(BaseModel):
     messages: list[dict]
 
