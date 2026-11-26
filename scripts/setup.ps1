@@ -35,12 +35,15 @@ if ($docker) {
 Load-DotEnv
 
 Say 'Python virtual environment + API / simulator packages'
-if (-not (Test-Path $Py)) { $exe = $pyCmd[0]; $rest = @($pyCmd | Select-Object -Skip 1); & $exe @rest -m venv $Venv }
-& $Py -m pip install --upgrade pip --quiet
-& $Py -m pip install -r (Join-Path $Root 'api\requirements.txt') --quiet
+if (-not (Test-Path $Py)) { Write-Host '   creating .venv …'; $exe = $pyCmd[0]; $rest = @($pyCmd | Select-Object -Skip 1); & $exe @rest -m venv $Venv }
+Write-Host '   upgrading pip …'
+& $Py -m pip install --upgrade pip --disable-pip-version-check
+Write-Host '   installing packages (first time: a few minutes) …'
+& $Py -m pip install -r (Join-Path $Root 'api\requirements.txt') --disable-pip-version-check
 if ($LASTEXITCODE -ne 0) { Fail 'pip install failed (see above).' }
 if (-not $docker) {
-  & $Py -m pip install pgserver --quiet
+  Write-Host '   installing embedded PostgreSQL (pgserver) …'
+  & $Py -m pip install pgserver --disable-pip-version-check
   if ($LASTEXITCODE -ne 0) { Fail 'Could not install pgserver (embedded PostgreSQL). It needs Python 3.12 on 64-bit Windows.' }
 }
 
