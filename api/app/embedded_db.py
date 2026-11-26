@@ -35,10 +35,13 @@ def resolve(url: str) -> str:
     d.mkdir(parents=True, exist_ok=True)
     srv = pgserver.get_server(str(d), cleanup_mode=None)  # keep running after this process exits
     dbname = "carbonkhata_test" if url == "embedded-test" else "carbonkhata"
-    exists = srv.psql(f"SELECT 1 FROM pg_database WHERE datname = '{dbname}';")
-    if "1 row" not in exists:
-        srv.psql(f"CREATE DATABASE {dbname};")
     u = urlsplit(srv.get_uri())
+    # Talk to the server directly (pgserver's psql() helper breaks on paths containing spaces).
+    import psycopg
+    admin = urlunsplit(("postgresql", u.netloc, "/postgres", u.query, ""))
+    with psycopg.connect(admin, autocommit=True) as c:
+        if not c.execute("SELECT 1 FROM pg_database WHERE datname = %s", (dbname,)).fetchone():
+            c.execute(f'CREATE DATABASE "{dbname}"')
     out = urlunsplit(("postgresql+psycopg", u.netloc, f"/{dbname}", u.query, ""))
     _cache[url] = out
     return out
