@@ -47,7 +47,7 @@ function Start-Svc($name, $dir, $file, $argList) {
 $npm = (Get-Command npm.cmd -ErrorAction SilentlyContinue).Source; if (-not $npm) { $npm = 'npm' }
 
 Say 'Starting API on http://localhost:8000 (docs at /docs)'
-Start-Svc 'api' 'api' $Py @('-m', 'uvicorn', 'app.main:app', '--port', '8000')
+Start-Svc 'api' 'api' $Py @('-m', 'uvicorn', 'app.main:app', '--port', '8000', '--no-access-log')
 if (-not (Wait-Port 8000 60)) { Fail "API did not start. See $logDir\$runId-api.log.err" }
 Say 'Starting web app on http://localhost:5173'
 Start-Svc 'web' 'web' $npm @('run', 'dev')

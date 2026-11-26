@@ -154,3 +154,11 @@ If the phone shows **"This site can't be reached"**, work through these in order
 1. Open `http://<laptop-ip>:5173` **on the laptop itself**. If that fails, restart `dev.ps1`: the server must have been started after pulling this version.
 2. Run `scripts\allow-phone.ps1` (firewall and Private network).
 3. Office and college Wi-Fi often blocks devices from talking to each other ("client isolation"). Turn on the **phone's hotspot**, connect the laptop to it, restart `dev.ps1`, and open the new address it prints.
+
+## No admin rights, or the Wi-Fi blocks devices: share links
+
+In a **second** PowerShell window, while `dev.ps1` is running:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\share.ps1
+```
+It downloads `cloudflared.exe` once into `tools\` (no install, no admin) and prints two random HTTPS links: one for the product (phone) and one for the demo controls and device pages (second laptop). These work from any network, mobile data included. The links are **public while the window is open**: anyone with the link reaches the sign-in page, so keep them private (all data is fictional demo data). Press Ctrl+C to close them.

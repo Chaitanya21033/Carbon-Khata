@@ -9,7 +9,7 @@ const API_PROXY = { '/api': API, '/docs': API, '/redoc': API, '/openapi.json': A
 
 export default defineConfig({
   plugins: [react()],
-  server: { host: true, port: 5173, strictPort: true, proxy: API_PROXY },
-  preview: { host: true, port: 5173, proxy: API_PROXY },
+  server: { host: true, port: 5173, strictPort: true, allowedHosts: true, proxy: API_PROXY },
+  preview: { host: true, port: 5173, allowedHosts: true, proxy: API_PROXY },
   test: { environment: 'node' },
 });

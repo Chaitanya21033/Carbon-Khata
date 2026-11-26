@@ -14,3 +14,4 @@ sim/control-panel/node_modules/
 reference/node_modules/
 .venv
 captures/
+tools/
