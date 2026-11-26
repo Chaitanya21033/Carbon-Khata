@@ -198,16 +198,18 @@ _last_save: dict[str, float] = {}
 def _handle(topic: str, payload: dict):
     parts = topic.split("/")
     if len(parts) < 3 or parts[0] != "plant":
-        return
+        return None
     tenant = parts[1]
     tw = get_twin(tenant)
     if tw is None:
-        return
+        return None
     kind = parts[2]
     with _lock:
+        result = None
         if kind == "ems" and parts[3] == "request":
             sp = tw.request_plan(payload)
-            publish(f"plant/{tenant}/ems/setpoint", {**sp, "reqId": payload.get("reqId")})
+            result = {**sp, "reqId": payload.get("reqId")}
+            publish(f"plant/{tenant}/ems/setpoint", result)
         elif kind in ("meter", "asset"):
             ts = iso_to_plant_ms(payload["ts"])
             fr = _frames.setdefault((tenant, ts), {"meters": {}, "assets": {}})
@@ -230,6 +232,24 @@ def _handle(topic: str, payload: dict):
     if time.monotonic() - _last_save.get(tenant, 0) > 15:
         _last_save[tenant] = time.monotonic()
         save_state(tw)
+    return result
+
+
+_replan_pending: dict[str, bool] = {}
+
+
+def handle_http(tenant: str, messages: list[dict]) -> dict:
+    """No-broker mode: the same messages as MQTT, posted over HTTP by a gateway. Replies carry the setpoint
+    (for an ems/request) and whether the controller must ask for a new plan."""
+    sp = None
+    for m in messages:
+        topic = m["topic"]
+        if topic.split("/")[1:2] != [tenant]:
+            continue
+        r = _handle(topic, m["payload"])
+        if r is not None:
+            sp = r
+    return {"setpoint": sp, "replan": _replan_pending.pop(tenant, False)}
 
 
 def assemble(ts: int, fr: dict, inc: dict) -> dict:
@@ -255,6 +275,7 @@ def replan(tenant_id: str):
     tw = TWINS.get(tenant_id)
     if tw:
         tw.ems.replan()
+    _replan_pending[tenant_id] = True
     publish(f"plant/{tenant_id}/ems/replan", {"at": time.time()})
 
 

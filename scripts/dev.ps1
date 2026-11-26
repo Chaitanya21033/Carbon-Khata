@@ -11,14 +11,16 @@ if (-not (Test-Path $Py)) { Fail 'Run scripts\setup.ps1 first.' }
 Load-DotEnv
 
 Say 'Making sure PostgreSQL and Mosquitto are running'
-docker compose -f (Join-Path $Root 'infra\docker-compose.yml') up -d | Out-Null
-if (-not (Wait-Port 5432 60)) { Fail 'PostgreSQL is not reachable on 5432 (is Docker Desktop running?).' }
-if (-not (Wait-Port 1883 30)) { Fail 'Mosquitto is not reachable on 1883.' }
+if (Use-Docker) {
+  docker compose -f (Join-Path $Root 'infra\docker-compose.yml') up -d | Out-Null
+  if (-not (Wait-Port 5432 60)) { Fail 'PostgreSQL is not reachable on 5432 (is Docker Desktop running?).' }
+  if (-not (Wait-Port 1883 30)) { Fail 'Mosquitto is not reachable on 1883.' }
+} else { Write-Host '   no-Docker mode: embedded PostgreSQL, meter data over HTTP' }
 Push-Location (Join-Path $Root 'api'); & $Py -m alembic upgrade head | Out-Null; Pop-Location
 
 $procs = [ordered]@{}
 function Start-Svc($name, $dir, $file, $argList) {
-  $out = Join-Path $env:TEMP "carbonkhata-$name.log"
+  $out = Join-Path ([IO.Path]::GetTempPath()) "carbonkhata-$name.log"
   if (Test-Path $out) { Remove-Item $out -Force }
   $p = Start-Process -FilePath $file -ArgumentList $argList -WorkingDirectory (Join-Path $Root $dir) -NoNewWindow -PassThru -RedirectStandardOutput $out -RedirectStandardError "$out.err"
   $procs[$name] = @{ p = $p; out = $out; pos = 0; epos = 0 }
@@ -27,7 +29,7 @@ $npm = (Get-Command npm.cmd -ErrorAction SilentlyContinue).Source; if (-not $npm
 
 Say 'Starting API on http://localhost:8000 (docs at /docs)'
 Start-Svc 'api' 'api' $Py @('-m', 'uvicorn', 'app.main:app', '--port', '8000')
-if (-not (Wait-Port 8000 60)) { Fail "API did not start. See $env:TEMP\carbonkhata-api.log.err" }
+if (-not (Wait-Port 8000 60)) { Fail "API did not start. See the temp folder: carbonkhata-api.log.err" }
 Say 'Starting web app on http://localhost:5173'
 Start-Svc 'web' 'web' $npm @('run', 'dev')
 if (-not $NoSim) {

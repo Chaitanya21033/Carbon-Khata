@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(ROOT / ".env", ROOT / "infra" / ".env"), extra="ignore")
 
-    database_url: str = "postgresql+psycopg://carbonkhata:carbonkhata@localhost:5432/carbonkhata"
+    database_url: str = "postgresql+psycopg://carbonkhata:carbonkhata@localhost:5432/carbonkhata"  # or "embedded" (no Docker)
     jwt_secret: str = "dev-only-change-me-to-a-long-random-string"
     jwt_ttl_minutes: int = 720
     otp_dev_echo: bool = True            # dev: return the OTP in the response and print it to the console
@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     storage_dir: str = str(ROOT / "api" / "storage")
 
     def model_post_init(self, _ctx):
+        if self.database_url.startswith("embedded"):
+            from .embedded_db import resolve
+            self.database_url = resolve(self.database_url)
         if not self.storage_dir:
             self.storage_dir = str(ROOT / "api" / "storage")
     open_meteo_enabled: bool = True

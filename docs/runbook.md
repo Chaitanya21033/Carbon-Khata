@@ -63,6 +63,14 @@ Pick a demo account on the sign-in screen and press **Send code**. In dev mode t
 | coordinator@adityapur.example | Cluster coordinator | Cluster pool, exchanges, scoreboard |
 | ops@carbonkhata.example | Platform admin | Onboarding pipeline, DQ centre, factor library, audit log, support view |
 
+## Without Docker
+
+If Docker is not running, `setup.ps1` switches to **no-Docker mode** by itself (force it with `-NoDocker`):
+- **Database:** `DATABASE_URL=embedded` runs real PostgreSQL 16 from the `pgserver` pip package. Its data is kept in `%LOCALAPPDATA%\CarbonKhata\pgdata`.
+- **Meter data:** `MQTT_ENABLED=false` makes the simulator post the same meter topics to `POST /api/v1/ingest/messages` over HTTP, so no broker is needed.
+
+Everything else is identical, and all tests pass in this mode. To move to Docker later, start Docker Desktop and run `setup.ps1` again.
+
 ## Everyday tasks
 
 | Task | Command |

@@ -101,6 +101,17 @@ def production_event(body: ProdEvent, ctx: Ctx = Depends(require("device", "oper
     return {"ok": True}
 
 
+class IngestIn(BaseModel):
+    messages: list[dict]
+
+
+@r.post("/ingest/messages", tags=["live"])
+def ingest_messages(body: IngestIn, ctx: Ctx = Depends(require("device"))):
+    """HTTP alternative to MQTT for gateways that cannot reach a broker: the same topics and payloads
+    (plant/{plantId}/meter/…, asset/…, ems/request, device/…/status). Returns the EMS setpoint when one was requested."""
+    return registry.handle_http(ctx.tenant_id, body.messages)
+
+
 # ======================================================================== energy
 def _twin(ctx: Ctx):
     tw = registry.get_twin("vbw" if ctx.role == "admin" else ctx.tenant_id)

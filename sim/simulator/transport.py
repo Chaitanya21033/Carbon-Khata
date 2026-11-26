@@ -114,3 +114,36 @@ class LiveTransport:
 
     def device_status(self, device: str, online: bool, queued: int):
         self.pub(f"device/{device}/status", {"online": online, "queued": queued})
+
+
+class HttpTransport(LiveTransport):
+    """No-broker mode (MQTT_ENABLED=false): identical topics and payloads, posted to POST /api/v1/ingest/messages.
+    One request per plant-minute; the reply carries the EMS setpoint and any re-plan notice."""
+
+    def __init__(self, api: Api, plant: str = "vbw"):
+        self.api = api
+        self.plant = plant
+        self.buf: list[dict] = []
+        self.on_replan = lambda: None
+
+    def pub(self, sub: str, payload: dict):
+        self.buf.append({"topic": f"plant/{self.plant}/{sub}", "payload": payload})
+
+    def _send(self) -> dict:
+        msgs, self.buf = self.buf, []
+        r = self.api.call("POST", "/api/v1/ingest/messages", "sim-vbw", {"messages": msgs}, queue_on_fail=False) or {}
+        if r.get("replan"):
+            self.on_replan()
+        return r
+
+    def request_plan(self, req: dict) -> dict | None:
+        self.pub("ems/request", {**req, "reqId": uuid.uuid4().hex[:10]})
+        return self._send().get("setpoint")
+
+    def telemetry(self, f: dict):
+        super().telemetry(f)
+        self._send()
+
+    def device_status(self, device: str, online: bool, queued: int):
+        super().device_status(device, online, queued)
+        self._send()

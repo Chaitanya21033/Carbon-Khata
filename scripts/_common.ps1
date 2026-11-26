@@ -38,3 +38,16 @@ function Wait-Port($port, $seconds = 60) {
   }
   return $false
 }
+
+# No-Docker mode: DATABASE_URL=embedded (PostgreSQL from the pgserver pip package) and MQTT_ENABLED=false (HTTP frames).
+function Use-Docker { return -not ($env:DATABASE_URL -like 'embedded*') }
+
+function Set-EnvVar($key, $value) {
+  $f = Join-Path $Root '.env'
+  $lines = @(Get-Content $f)
+  $found = $false
+  $lines = $lines | ForEach-Object { if ($_ -match "^\s*$key=") { $found = $true; "$key=$value" } else { $_ } }
+  if (-not $found) { $lines += "$key=$value" }
+  Set-Content -Path $f -Value $lines -Encoding UTF8
+  [Environment]::SetEnvironmentVariable($key, $value, 'Process')
+}

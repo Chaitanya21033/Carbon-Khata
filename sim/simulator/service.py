@@ -17,7 +17,7 @@ from pydantic import BaseModel
 
 from .engine import DEVICES, SimEngine
 from .feeds import ClusterMeters, FmcgLine
-from .transport import Api, LiveTransport, iso
+from .transport import Api, HttpTransport, LiveTransport, iso
 
 log = logging.getLogger("sim")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -43,7 +43,11 @@ class Sim:
     def __init__(self):
         keys = dict(p.split(":", 1) for p in env("DEVICE_KEYS", "sim-vbw:dev-key-vbw,sim-afl:dev-key-afl,sim-cluster:dev-key-cluster,sim-market:dev-key-market").split(","))
         self.api = Api(env("API_URL", "http://localhost:8000"), keys)
-        self.tr = LiveTransport(self.api, env("MQTT_HOST", "localhost"), int(env("MQTT_PORT", "1883")))
+        if env("MQTT_ENABLED", "true").lower() in ("false", "0", "no"):
+            log.info("MQTT disabled: sending meter frames to the API over HTTP")
+            self.tr = HttpTransport(self.api)
+        else:
+            self.tr = LiveTransport(self.api, env("MQTT_HOST", "localhost"), int(env("MQTT_PORT", "1883")))
         self.tr.on_replan = lambda: self.e.replan()
         self.lock = threading.RLock()
         self.heat_tripped = False

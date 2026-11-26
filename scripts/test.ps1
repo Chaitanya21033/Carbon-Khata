@@ -5,8 +5,10 @@
 . "$PSScriptRoot\_common.ps1"
 Set-Location $Root
 Load-DotEnv
-docker compose -f (Join-Path $Root 'infra\docker-compose.yml') up -d db | Out-Null
-if (-not (Wait-Port 5432 60)) { Fail 'PostgreSQL is not reachable on 5432.' }
+if (Use-Docker) {
+  docker compose -f (Join-Path $Root 'infra\docker-compose.yml') up -d db | Out-Null
+  if (-not (Wait-Port 5432 60)) { Fail 'PostgreSQL is not reachable on 5432.' }
+}
 $failed = 0
 Say 'Backend: domain (ported reference tests), integration (EMS + simulator), API'
 Push-Location (Join-Path $Root 'api'); & $Py -m pytest -q; if ($LASTEXITCODE -ne 0) { $failed++ }; Pop-Location
