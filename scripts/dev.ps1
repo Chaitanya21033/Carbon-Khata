@@ -18,10 +18,29 @@ if (Use-Docker) {
 } else { Write-Host '   no-Docker mode: embedded PostgreSQL, meter data over HTTP' }
 Push-Location (Join-Path $Root 'api'); & $Py -m alembic upgrade head | Out-Null; Pop-Location
 
+# Stop anything left over from an earlier run (a closed window or an interrupted Ctrl+C) that still holds our ports.
+function Stop-Leftovers {
+  $ports = 8000, 5173, 5174, 5175
+  $pids = @()
+  try { $pids = Get-NetTCPConnection -State Listen -LocalPort $ports -ErrorAction Stop | Select-Object -ExpandProperty OwningProcess -Unique } catch { }
+  foreach ($p in $pids) {
+    if ($p -and $p -ne $PID -and $p -ne 0) {
+      $name = (Get-Process -Id $p -ErrorAction SilentlyContinue).ProcessName
+      Write-Host "   stopping leftover $name (pid $p) from an earlier run" -ForegroundColor DarkYellow
+      if ($env:OS -eq 'Windows_NT') { & taskkill /T /F /PID $p *> $null } else { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue }
+    }
+  }
+  if ($pids) { Start-Sleep -Seconds 2 }
+}
+Stop-Leftovers
+
 $procs = [ordered]@{}
+$runId = Get-Date -Format 'yyyyMMdd-HHmmss'
+$logDir = Join-Path ([IO.Path]::GetTempPath()) 'carbonkhata-logs'
+New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+Get-ChildItem $logDir -Filter '*.log*' -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-2) } | Remove-Item -Force -ErrorAction SilentlyContinue
 function Start-Svc($name, $dir, $file, $argList) {
-  $out = Join-Path ([IO.Path]::GetTempPath()) "carbonkhata-$name.log"
-  if (Test-Path $out) { Remove-Item $out -Force }
+  $out = Join-Path $logDir "$runId-$name.log"
   $p = Start-Process -FilePath $file -ArgumentList $argList -WorkingDirectory (Join-Path $Root $dir) -NoNewWindow -PassThru -RedirectStandardOutput $out -RedirectStandardError "$out.err"
   $procs[$name] = @{ p = $p; out = $out; pos = 0; epos = 0 }
 }
@@ -29,7 +48,7 @@ $npm = (Get-Command npm.cmd -ErrorAction SilentlyContinue).Source; if (-not $npm
 
 Say 'Starting API on http://localhost:8000 (docs at /docs)'
 Start-Svc 'api' 'api' $Py @('-m', 'uvicorn', 'app.main:app', '--port', '8000')
-if (-not (Wait-Port 8000 60)) { Fail "API did not start. See the temp folder: carbonkhata-api.log.err" }
+if (-not (Wait-Port 8000 60)) { Fail "API did not start. See $logDir\$runId-api.log.err" }
 Say 'Starting web app on http://localhost:5173'
 Start-Svc 'web' 'web' $npm @('run', 'dev')
 if (-not $NoSim) {
