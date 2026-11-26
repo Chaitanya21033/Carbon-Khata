@@ -14,7 +14,8 @@ if (-not (Test-Path $exe)) {
   $ProgressPreference = 'SilentlyContinue'
   Invoke-WebRequest -Uri 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe' -OutFile $exe -UseBasicParsing
 }
-if (-not (Wait-Port 5173 5)) { Fail 'The demo is not running. Start scripts\dev.ps1 first, then run this in a second window.' }
+Say 'Waiting for the demo on port 5173 (start scripts\dev.ps1 in the other window if it is not running)'
+if (-not (Wait-Port 5173 90)) { Fail 'The demo is not running. In the FIRST window run scripts\dev.ps1 -Demo, wait for "Running.", then run this again.' }
 
 $logDir = Join-Path ([IO.Path]::GetTempPath()) 'carbonkhata-logs'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
